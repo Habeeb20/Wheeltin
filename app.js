@@ -6,6 +6,7 @@ import morgan from "morgan";
 import { connectDb } from "./db/database.js";
 import jwt from "jsonwebtoken"
 import userRouter from "./routes/auth/userRoute.js";
+import jobRouter from "./routes/job/jobRoutes.js";
 
 connectDb();
 
@@ -54,6 +55,7 @@ app.get("/", (req, res) => {
 
 
 app.use("/api/auth", userRouter)
+app.use("api/jobs", jobRouter)
 
 // Error handling
 app.use((err, req, res, next) => {

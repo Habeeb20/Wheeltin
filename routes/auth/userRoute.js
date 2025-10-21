@@ -1,5 +1,5 @@
 import express from "express";
-import { login, logout, refresh, signup } from "../../controllers/auth/userController.js";
+import { forgotPassword, login, logout, refresh, resetPassword, signup } from "../../controllers/auth/userController.js";
 
 const userRouter = express.Router();
 
@@ -9,5 +9,6 @@ userRouter.post('/login', login);
 userRouter.post('/refresh', refresh);
 userRouter.post('/logout', logout);
 
-
+userRouter.post('/forgot-password', forgotPassword);
+userRouter.post('/reset-password', resetPassword);
 export default userRouter;

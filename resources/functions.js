@@ -27,7 +27,7 @@ import bcrypt from "bcryptjs";
 import axios from "axios";
 import crypto from "crypto";
 import { body, validationResult } from "express-validator";
-
+import cloudinary from "cloudinary";
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -35,6 +35,13 @@ const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
 const GOOGLE_KEY = process.env.GOOGLE_KEY;
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
 
 
 export const validateEmail = (email) => {
@@ -256,12 +263,71 @@ export async function validateAndCalculate(userEmail, userPassword, userInput, p
 
 
 
+export function generateResetToken() {
+    try {
+        return crypto.randomBytes(32).toString('hex');
+    } catch (error) {
+        throw new Error("reset token generation failed: " + error.message);
+    }
+}
+
+export async function sendPasswordResetEmail(email, token) {
+    try {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: EMAIL_USER,
+                pass: EMAIL_PASS,
+            },
+        });
+
+        const resetUrl = `https://wheelitin.taskflow.com.ng/reset-password?token=${token}`;
+        await transporter.sendMail({
+            from: `"WalletApp" <${EMAIL_USER}>`,
+            to: email,
+            subject: 'Reset Your Password',
+            text: `Click the following link to reset your password: ${resetUrl}`,
+            html: `<p>Click <a href="${resetUrl}">here</a> to reset your password. This link expires in 1 hour.</p>`,
+        });
+        return { success: true, message: "Password reset email sent successfully" };
+    } catch (error) {
+        console.error("Failed to send password reset email:", error);
+        return { success: false, message: `Failed to send password reset email: ${error.message}` };
+    }
+}
 
 
 
 
 
 
+
+export async function uploadToCloudinary(images) {
+    try {
+        const uploadPromises = images.map(async (image) => {
+            const result = await cloudinary.v2.uploader.upload(image, {
+                upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET,
+                folder: "jobs"
+            });
+            return result.secure_url;
+        });
+        const urls = await Promise.all(uploadPromises);
+        return { success: true, urls };
+    } catch (error) {
+        console.error("Cloudinary upload failed:", error);
+        return { success: false, message: `Cloudinary upload failed: ${error.message}` };
+    }
+}
+
+export function generateUniqueNumber() {
+    try {
+        const timestamp = Date.now().toString(36);
+        const random = crypto.randomBytes(4).toString('hex');
+        return `${timestamp}-${random}`;
+    } catch (error) {
+        throw new Error("unique number generation failed: " + error.message);
+    }
+}
 
 
 
