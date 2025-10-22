@@ -6,7 +6,7 @@ import { createReport, submitQuotation, acceptQuotation, completeReport, submitR
 
 const reportRouter = express.Router();
 
- reportRouter.post('/reports', createReport);
+ reportRouter.post('/', createReport);
  reportRouter.post('/reports/:reportId/quotations', submitQuotation);
  reportRouter.post('/reports/:reportId/accept/:specialistId', acceptQuotation);
  reportRouter.post('/reports/:reportId/complete', completeReport);

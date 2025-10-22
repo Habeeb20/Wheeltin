@@ -198,11 +198,8 @@ export const login = async (req, res) => {
 
 export const dashboard = async (req, res) => {
     try {
-        if (!req.user || !req.user.id) {
-            return res.status(401).json({ error: "Unauthorized: Invalid token" });
-        }
-
-        const userId = req.user.id;
+       
+        const userId = req.user.id || req.user._id;
         const user = await User.findOne({ _id: userId }).select('-password -resetPasswordToken -verificationToken -__v');
 
         if (!user) {
