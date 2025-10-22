@@ -192,6 +192,30 @@ export const login = async (req, res) => {
     }
 };
 
+
+
+
+
+export const dashboard = async (req, res) => {
+    try {
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({ error: "Unauthorized: Invalid token" });
+        }
+
+        const userId = req.user.id;
+        const user = await User.findOne({ _id: userId }).select('-password -resetPasswordToken -verificationToken -__v');
+
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        return res.status(200).json({ user });
+    } catch (error) {
+        console.error("Dashboard error:", error.message);
+        return res.status(500).json({ error: `Server error: ${error.message}` });
+    }
+};
+
 export const refresh = async (req, res) => {
     try {
         const { refresh_token } = req.body;
@@ -343,39 +367,56 @@ export const resetPassword = async (req, res) => {
 
 
 
+export const changePassword = [
+    authenticateToken,
+    async (req, res) => {
+        try {
+            const { currentPassword, newPassword } = req.body;
+
+            // Validate input
+            if (!currentPassword || !newPassword) {
+                return res.status(400).json({ error: "Current and new passwords are required" });
+            }
+
+            const passwordValidation = validatePassword(newPassword);
+            if (!passwordValidation.isValid) {
+                return res.status(400).json({ error: passwordValidation.message });
+            }
+
+            // Find user
+            const user = await User.findById(req.user.id);
+            if (!user) {
+                return res.status(404).json({ error: "User not found" });
+            }
+
+            // Verify current password
+            const isMatch = await verifyPassword(currentPassword, user.password);
+            if (!isMatch) {
+                return res.status(401).json({ error: "Current password is incorrect" });
+            }
+
+            // Check if new password is same as current
+            if (await verifyPassword(newPassword, user.password)) {
+                return res.status(400).json({ error: "New password cannot be the same as the current password" });
+            }
+
+            // Hash new password
+            user.password = await hashPassword(newPassword);
+            user.passwordChangedAt = new Date(); // Invalidate existing JWTs
+
+            await user.save();
+
+            // Emit real-time event (optional, for user logout on other devices)
+            req.io.to(req.user.id).emit('passwordChanged', { message: "Password changed, please log in again" });
+
+            return res.status(200).json({ message: "Password changed successfully" });
+        } catch (error) {
+            console.error("Change password error:", error.message);
+            return res.status(500).json({ error: `Server error: ${error.message}` });
+        }
+    }
+];
 
 
 
 
-
-
-// {
-//     "message": "User registered successfully. Please verify your email.",
-//     "user": {
-//         "id": "507f1f77bcf86cd799439011",
-//         "first_name": "John",
-//         "last_name": "Doe",
-//         "email": "john.doe@example.com",
-//         "user_type": "user",
-//         "address": "SW1A1AA"
-//     },
-//     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-//     "verificationCode": "1234"
-// }
-
-
-
-
-// {
-//     "message": "User registered successfully. Warning: Failed to send verification email. Please try verifying later.",
-//     "user": {
-//         "id": "507f1f77bcf86cd799439011",
-//         "first_name": "John",
-//         "last_name": "Doe",
-//         "email": "john.doe@example.com",
-//         "user_type": "user",
-//         "address": "SW1A1AA"
-//     },
-//     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-//     "emailWarning": "Failed to send verification email: ..."
-// }

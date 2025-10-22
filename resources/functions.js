@@ -28,6 +28,7 @@ import axios from "axios";
 import crypto from "crypto";
 import { body, validationResult } from "express-validator";
 import cloudinary from "cloudinary";
+import User from "../models/user/userSchema.js"
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -163,7 +164,7 @@ export function generateRefreshToken(userId, email) {
 }
 
 
-export function authenticateToken(req, res, next) {
+export async function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
@@ -174,6 +175,17 @@ export function authenticateToken(req, res, next) {
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
+             const user = await  User.findById(decoded.id).select('passwordChangedAt');
+
+         if (!user) {
+            return res.status(401).json({ error: 'User not found' });
+        }
+
+        // Check if password was changed after token issuance
+        if (user.passwordChangedAt && decoded.iat * 1000 < user.passwordChangedAt.getTime()) {
+            return res.status(401).json({ error: 'Token invalid: Password changed' });
+        }
+
         req.user = decoded;
         next();
     } catch (error) {
@@ -302,22 +314,22 @@ export async function sendPasswordResetEmail(email, token) {
 
 
 
-export async function uploadToCloudinary(images) {
-    try {
-        const uploadPromises = images.map(async (image) => {
-            const result = await cloudinary.v2.uploader.upload(image, {
-                upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET,
-                folder: "jobs"
-            });
-            return result.secure_url;
-        });
-        const urls = await Promise.all(uploadPromises);
-        return { success: true, urls };
-    } catch (error) {
-        console.error("Cloudinary upload failed:", error);
-        return { success: false, message: `Cloudinary upload failed: ${error.message}` };
-    }
-}
+// export async function uploadToCloudinary(images) {
+//     try {
+//         const uploadPromises = images.map(async (image) => {
+//             const result = await cloudinary.v2.uploader.upload(image, {
+//                 upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET,
+//                 folder: "jobs"
+//             });
+//             return result.secure_url;
+//         });
+//         const urls = await Promise.all(uploadPromises);
+//         return { success: true, urls };
+//     } catch (error) {
+//         console.error("Cloudinary upload failed:", error);
+//         return { success: false, message: `Cloudinary upload failed: ${error.message}` };
+//     }
+// }
 
 export function generateUniqueNumber() {
     try {
@@ -332,6 +344,102 @@ export function generateUniqueNumber() {
 
 
 
+///send email notifications
+
+
+export async function sendEmailVerification(email, userId) {
+    try {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: EMAIL_USER,
+                pass: EMAIL_PASS,
+            },
+        });
+
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+        const verificationUrl = `http://your-app.com/verify-email?token=${verificationToken}&userId=${userId}`;
+        await transporter.sendMail({
+            from: `"ServiceApp" <${EMAIL_USER}>`,
+            to: email,
+            subject: 'Verify Your Email for Service Report',
+            text: `Please verify your email by clicking: ${verificationUrl}`,
+            html: `<p>Please verify your email to submit service reports: <a href="${verificationUrl}">Verify Email</a></p>`
+        });
+        return { success: true, token: verificationToken, message: "Verification email sent successfully" };
+    } catch (error) {
+        console.error("Failed to send verification email:", error);
+        return { success: false, message: `Failed to send verification email: ${error.message}` };
+    }
+}
+
+export async function sendReportNotification(email, reportId, reportTitle) {
+    try {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: EMAIL_USER,
+                pass: EMAIL_PASS,
+            },
+        });
+
+        const reportUrl = `http://your-app.com/reports/${reportId}`;
+        await transporter.sendMail({
+            from: `"ServiceApp" <${EMAIL_USER}>`,
+            to: email,
+            subject: `New Service Report: ${reportTitle}`,
+            text: `A new service report has been posted: ${reportTitle}. View details: ${reportUrl}`,
+            html: `<p>A new service report has been posted: <strong>${reportTitle}</strong>. <a href="${reportUrl}">View Details</a></p>`
+        });
+        return { success: true, message: "Notification email sent successfully" };
+    } catch (error) {
+        console.error("Failed to send notification email:", error);
+        return { success: false, message: `Failed to send notification email: ${error.message}` };
+    }
+}
+
+export async function sendQuotationNotification(email, reportId, reportTitle, specialistName) {
+    try {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: EMAIL_USER,
+                pass: EMAIL_PASS,
+            },
+        });
+
+        const reportUrl = `http://your-app.com/reports/${reportId}`;
+        await transporter.sendMail({
+            from: `"ServiceApp" <${EMAIL_USER}>`,
+            to: email,
+            subject: `New Quotation for Report: ${reportTitle}`,
+            text: `${specialistName} has submitted a quotation for your report: ${reportTitle}. View details: ${reportUrl}`,
+            html: `<p>${specialistName} has submitted a quotation for your report: <strong>${reportTitle}</strong>. <a href="${reportUrl}">View Details</a></p>`
+        });
+        return { success: true, message: "Quotation notification email sent successfully" };
+    } catch (error) {
+        console.error("Failed to send quotation notification email:", error);
+        return { success: false, message: `Failed to send quotation notification email: ${error.message}` };
+    }
+}
+
+export async function uploadToCloudinary(media, type = 'image') {
+    try {
+        const uploadPromises = media.map(async (item) => {
+            const result = await cloudinary.v2.uploader.upload(item, {
+                upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET,
+                folder: `jobs/${type}s`,
+                resource_type: type
+            });
+            return result.secure_url;
+        });
+        const urls = await Promise.all(uploadPromises);
+        return { success: true, urls };
+    } catch (error) {
+        console.error(`Cloudinary ${type} upload failed:`, error);
+        return { success: false, message: `Cloudinary ${type} upload failed: ${error.message}` };
+    }
+}
 
 
 

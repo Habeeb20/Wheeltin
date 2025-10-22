@@ -5,6 +5,16 @@
 
 import mongoose from "mongoose";
 
+const reviewSchema = new mongoose.Schema({
+    rating: { type: Number, min: 1, max: 5, required: true },
+    comment: { type: String, maxlength: 500, trim: true },
+    reviewerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    createdAt: { type: Date, default: Date.now }
+});
+
+
+
+
 const userSchema = new mongoose.Schema({
     first_name: {
         type: String,
@@ -65,8 +75,21 @@ const userSchema = new mongoose.Schema({
     resetPasswordExpires: {
         type: Date,
         required: false
-    }
+    },
+        passwordChangedAt: { type: Date },
+    reviews: [reviewSchema]
 
 });
 
 export default mongoose.model("User", userSchema);
+
+
+
+
+
+
+
+
+
+
+
