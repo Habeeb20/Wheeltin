@@ -31,10 +31,12 @@ import cloudinary from "cloudinary";
 import User from "../models/user/userSchema.js"
 dotenv.config();
 
+
+
 const JWT_SECRET = process.env.JWT_SECRET;
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
-const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_PASS = process.env.EMAIL_PASS;
+const EMAIL_USER = process.env.EMAIL_USER || "codequor@gmail.com";
+const EMAIL_PASS = process.env.EMAIL_PASS || "jflsxcdlycnmnsso";
 const GOOGLE_KEY = process.env.GOOGLE_KEY;
 
 cloudinary.config({
@@ -295,13 +297,14 @@ export async function sendPasswordResetEmail(email, token) {
 
         const resetUrl = `https://wheelitin.taskflow.com.ng/reset-password?token=${token}`;
         await transporter.sendMail({
-            from: `"WalletApp" <${EMAIL_USER}>`,
+            from: `"wheelitin" <${EMAIL_USER}>`,
             to: email,
             subject: 'Reset Your Password',
             text: `Click the following link to reset your password: ${resetUrl}`,
             html: `<p>Click <a href="${resetUrl}">here</a> to reset your password. This link expires in 1 hour.</p>`,
         });
-        return { success: true, message: "Password reset email sent successfully" };
+        console.log("Password reset email sent successfully, please check your mail " )
+        return { success: true, message: "Password reset email sent successfully, please check your mail " };
     } catch (error) {
         console.error("Failed to send password reset email:", error);
         return { success: false, message: `Failed to send password reset email: ${error.message}` };
@@ -358,9 +361,9 @@ export async function sendEmailVerification(email, userId) {
         });
 
         const verificationToken = crypto.randomBytes(32).toString('hex');
-        const verificationUrl = `http://your-app.com/verify-email?token=${verificationToken}&userId=${userId}`;
+        const verificationUrl = `https://wheelitin.taskflow.com.ng/verify-email?token=${verificationToken}&userId=${userId}`;
         await transporter.sendMail({
-            from: `"ServiceApp" <${EMAIL_USER}>`,
+            from: `"wheelitin" <${EMAIL_USER}>`,
             to: email,
             subject: 'Verify Your Email for Service Report',
             text: `Please verify your email by clicking: ${verificationUrl}`,
@@ -383,9 +386,9 @@ export async function sendReportNotification(email, reportId, reportTitle) {
             },
         });
 
-        const reportUrl = `http://your-app.com/reports/${reportId}`;
+        const reportUrl = `https://wheelitin.taskflow.com.ng/reports/${reportId}`;
         await transporter.sendMail({
-            from: `"ServiceApp" <${EMAIL_USER}>`,
+            from: `"wheelitin" <${EMAIL_USER}>`,
             to: email,
             subject: `New Service Report: ${reportTitle}`,
             text: `A new service report has been posted: ${reportTitle}. View details: ${reportUrl}`,
@@ -408,9 +411,9 @@ export async function sendQuotationNotification(email, reportId, reportTitle, sp
             },
         });
 
-        const reportUrl = `http://your-app.com/reports/${reportId}`;
+        const reportUrl = `https://wheelitin.taskflow.com.ng/reports/${reportId}`;
         await transporter.sendMail({
-            from: `"ServiceApp" <${EMAIL_USER}>`,
+            from: `"wheelitin" <${EMAIL_USER}>`,
             to: email,
             subject: `New Quotation for Report: ${reportTitle}`,
             text: `${specialistName} has submitted a quotation for your report: ${reportTitle}. View details: ${reportUrl}`,
