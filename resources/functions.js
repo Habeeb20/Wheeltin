@@ -165,37 +165,48 @@ export function generateRefreshToken(userId, email) {
     }
 }
 
-
 export async function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+  // Access header in a case-insensitive way
+  const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+  
+  if (!authHeader) {
+    console.log('No authorization header provided:', req.headers);
+    return res.status(401).json({ error: 'Access token required' });
+  }
 
-    if (!token) {
-        console.log('No token provided in header:', req.headers);
-        return res.status(401).json({ error: 'Access token required' });
+  // Extract token: handle both "Bearer <token>" and raw token
+  let token;
+  if (authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else {
+    token = authHeader; // Fallback for raw token
+  }
+
+  if (!token) {
+    console.log('No token extracted from header:', req.headers);
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select('passwordChangedAt');
+
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
     }
 
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-             const user = await  User.findById(decoded.id).select('passwordChangedAt');
-
-         if (!user) {
-            return res.status(401).json({ error: 'User not found' });
-        }
-
-        // Check if password was changed after token issuance
-        if (user.passwordChangedAt && decoded.iat * 1000 < user.passwordChangedAt.getTime()) {
-            return res.status(401).json({ error: 'Token invalid: Password changed' });
-        }
-
-        req.user = decoded;
-        next();
-    } catch (error) {
-        console.log('Token verification failed:', error.message, 'Token:', token);
-        return res.status(403).json({ error: 'Invalid or expired token' });
+    // Check if password was changed after token issuance
+    if (user.passwordChangedAt && decoded.iat * 1000 < user.passwordChangedAt.getTime()) {
+      return res.status(401).json({ error: 'Token invalid: Password changed' });
     }
+
+    req.user = decoded;
+    next();
+  } catch (error) {
+    console.log('Token verification failed:', error.message, 'Token:', token);
+    return res.status(403).json({ error: 'Invalid or expired token' });
+  }
 }
-
 export function haversineDistance(lat1, lon1, lat2, lon2) {
     const R = 6371;
     const toRad = (degrees) => degrees * Math.PI / 180;

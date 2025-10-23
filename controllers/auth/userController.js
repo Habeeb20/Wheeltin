@@ -294,8 +294,9 @@ export const forgotPassword = async (req, res) => {
         const user = await User.findOne({ email });
         if (!user) {
             // Return success to avoid leaking user existence
-            return res.status(200).json({ message: "Password reset email sent successfully" });
+            return res.status(404).json({ message: "email does not exist, please confirm you input the correct email" });
         }
+        
 
         // Generate reset token and expiration
         const resetToken = generateResetToken();

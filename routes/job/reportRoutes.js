@@ -12,7 +12,7 @@ const reportRouter = express.Router();
  reportRouter.post('/reports/:reportId/complete', completeReport);
  reportRouter.post('/reports/:reportId/reviews', submitReview);
  reportRouter.get('/reports/specialist', getReportsForSpecialist);
- reportRouter.get('/reports/user/:userId', getUserReports);
- reportRouter.get('/reports/:reportId', getReport);
+ reportRouter.get('/user/:userId', getUserReports);
+ reportRouter.get('/:reportId', getReport);
 
 export default  reportRouter;
