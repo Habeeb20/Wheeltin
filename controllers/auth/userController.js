@@ -199,7 +199,8 @@ export const login = async (req, res) => {
 export const dashboard = async (req, res) => {
     try {
        
-        const userId = req.user.id || req.user._id;
+        const userId = req.user?.id;
+        console.log(req.user)
         const user = await User.findOne({ _id: userId }).select('-password -resetPasswordToken -verificationToken -__v');
 
         if (!user) {
@@ -318,13 +319,20 @@ export const forgotPassword = async (req, res) => {
     }
 };
 
+
 export const resetPassword = async (req, res) => {
     try {
-        const { token, newPassword } = req.body;
+        const { token, email, newPassword } = req.body;
 
         // Validate inputs
-        if (!token || !newPassword) {
-            return res.status(400).json({ error: "Token and new password are required" });
+        if (!token || !email || !newPassword) {
+            return res.status(400).json({ error: "Token, email, and new password are required" });
+        }
+
+        // Validate email format
+        const { email: emailResult } = validateUserInput(email, "dummyPassword");
+        if (!emailResult.isValid) {
+            return res.status(400).json({ error: emailResult.message });
         }
 
         // Validate password
@@ -333,13 +341,14 @@ export const resetPassword = async (req, res) => {
             return res.status(400).json({ error: passwordResult.message });
         }
 
-        // Find user by reset token and check expiration
+        // Find user by reset token, email, and check expiration
         const user = await User.findOne({
             resetPasswordToken: token,
-            resetPasswordExpires: { $gt: Date.now() }
+            resetPasswordExpires: { $gt: Date.now() },
+            email: email
         });
         if (!user) {
-            return res.status(400).json({ error: "Invalid or expired reset token" });
+            return res.status(400).json({ error: "Invalid or expired reset token or incorrect email" });
         }
 
         // Hash new password
@@ -349,12 +358,16 @@ export const resetPassword = async (req, res) => {
         user.password = hashedPassword;
         user.resetPasswordToken = undefined;
         user.resetPasswordExpires = undefined;
+        user.passwordChangedAt = new Date(); // Invalidate existing JWTs
         await user.save();
+
+        // Emit real-time event to notify user to log in again
+        req.io.to(user._id.toString()).emit('passwordChanged', { message: "Password reset successfully, please log in again" });
 
         res.status(200).json({ message: "Password reset successfully" });
     } catch (error) {
-        console.error("Reset password error:", error);
-        res.status(500).json({ error: "Server error: " + error.message });
+        console.error("Reset password error:", error.message);
+        res.status(500).json({ error: `Server error: ${error.message}` });
     }
 };
 
@@ -414,6 +427,18 @@ export const changePassword = [
         }
     }
 ];
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

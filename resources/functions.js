@@ -296,6 +296,34 @@ export function generateResetToken() {
     }
 }
 
+// export async function sendPasswordResetEmail(email, token) {
+//     try {
+//         const transporter = nodemailer.createTransport({
+//             service: 'gmail',
+//             auth: {
+//                 user: EMAIL_USER,
+//                 pass: EMAIL_PASS,
+//             },
+//         });
+
+//         const resetUrl = `https://wheelitin.taskflow.com.ng/reset-password?token=${token}`;
+//         await transporter.sendMail({
+//             from: `"wheelitin" <${EMAIL_USER}>`,
+//             to: email,
+//             subject: 'Reset Your Password',
+//             text: `Click the following link to reset your password: ${resetUrl}`,
+//             html: `<p>Click <a href="${resetUrl}">here</a> to reset your password. This link expires in 1 hour.</p>`,
+//         });
+//         console.log("Password reset email sent successfully, please check your mail " )
+//         return { success: true, message: "Password reset email sent successfully, please check your mail " };
+//     } catch (error) {
+//         console.error("Failed to send password reset email:", error);
+//         return { success: false, message: `Failed to send password reset email: ${error.message}` };
+//     }
+// }
+
+
+
 export async function sendPasswordResetEmail(email, token) {
     try {
         const transporter = nodemailer.createTransport({
@@ -306,18 +334,18 @@ export async function sendPasswordResetEmail(email, token) {
             },
         });
 
-        const resetUrl = `https://wheelitin.taskflow.com.ng/reset-password?token=${token}`;
+        const resetUrl = `https://wheelitin.taskflow.com.ng/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
         await transporter.sendMail({
-            from: `"wheelitin" <${EMAIL_USER}>`,
+            from: `"WheelItIn" <${EMAIL_USER}>`,
             to: email,
             subject: 'Reset Your Password',
             text: `Click the following link to reset your password: ${resetUrl}`,
             html: `<p>Click <a href="${resetUrl}">here</a> to reset your password. This link expires in 1 hour.</p>`,
         });
-        console.log("Password reset email sent successfully, please check your mail " )
-        return { success: true, message: "Password reset email sent successfully, please check your mail " };
+        console.log("Password reset email sent successfully to", email);
+        return { success: true, message: "Password reset email sent successfully, please check your mail" };
     } catch (error) {
-        console.error("Failed to send password reset email:", error);
+        console.error("Failed to send password reset email:", error.message);
         return { success: false, message: `Failed to send password reset email: ${error.message}` };
     }
 }

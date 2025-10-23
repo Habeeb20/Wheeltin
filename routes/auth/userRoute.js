@@ -1,5 +1,6 @@
 import express from "express";
 import { changePassword, dashboard, forgotPassword, login, logout, refresh, resetPassword, signup } from "../../controllers/auth/userController.js";
+import { authenticateToken } from "../../resources/functions.js";
 
 const userRouter = express.Router();
 
@@ -13,5 +14,5 @@ userRouter.post('/forgot-password', forgotPassword);
 userRouter.post('/reset-password', resetPassword);
 
 userRouter.post('/change-password', changePassword);
-userRouter.get('/dashboard', dashboard); 
+userRouter.get('/dashboard', authenticateToken, dashboard); 
 export default userRouter;
