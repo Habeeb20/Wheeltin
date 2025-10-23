@@ -16,6 +16,7 @@ import {
 } from '../../resources/functions.js';
 import jwt  from "jsonwebtoken"
 import User from '../../models/user/userSchema.js';
+import { validatePassword } from '../../resources/functions.js';
 
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
 
@@ -299,13 +300,12 @@ export const forgotPassword = async (req, res) => {
         }
         
 
-        // Generate reset token and expiration
         const resetToken = generateResetToken();
         user.resetPasswordToken = resetToken;
-        user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+        user.resetPasswordExpires = Date.now() + 3600000; 
         await user.save();
 
-        // Send reset email (non-blocking)
+     
         const emailResults = await sendPasswordResetEmail(email, resetToken);
         const response = { message: "Password reset email sent successfully" };
         if (!emailResults.success) {
@@ -324,24 +324,23 @@ export const resetPassword = async (req, res) => {
     try {
         const { token, email, newPassword } = req.body;
 
-        // Validate inputs
+     
         if (!token || !email || !newPassword) {
             return res.status(400).json({ error: "Token, email, and new password are required" });
         }
 
-        // Validate email format
+     
         const { email: emailResult } = validateUserInput(email, "dummyPassword");
         if (!emailResult.isValid) {
             return res.status(400).json({ error: emailResult.message });
         }
 
-        // Validate password
+     
         const { password: passwordResult } = validateUserInput("dummy@example.com", newPassword);
         if (!passwordResult.isValid) {
             return res.status(400).json({ error: passwordResult.message });
         }
 
-        // Find user by reset token, email, and check expiration
         const user = await User.findOne({
             resetPasswordToken: token,
             resetPasswordExpires: { $gt: Date.now() },
@@ -430,6 +429,9 @@ export const changePassword = [
 
 
 
+ export const changeMyPassword = async(req, res) => {
+
+ }
 
 
 

@@ -7,11 +7,11 @@ import { createReport, submitQuotation, acceptQuotation, completeReport, submitR
 const reportRouter = express.Router();
 
  reportRouter.post('/', createReport);
- reportRouter.post('/reports/:reportId/quotations', submitQuotation);
- reportRouter.post('/reports/:reportId/accept/:specialistId', acceptQuotation);
- reportRouter.post('/reports/:reportId/complete', completeReport);
- reportRouter.post('/reports/:reportId/reviews', submitReview);
- reportRouter.get('/reports/specialist', getReportsForSpecialist);
+ reportRouter.post('/postreports/:reportId/quotations', submitQuotation);
+ reportRouter.post('/:reportId/accept/:specialistId', acceptQuotation);
+ reportRouter.post('/:reportId/complete', completeReport);
+ reportRouter.post('/:reportId/reviews', submitReview);
+ reportRouter.get('/getreports/specialist', getReportsForSpecialist);
  reportRouter.get('/user/:userId', getUserReports);
  reportRouter.get('/:reportId', getReport);
 
