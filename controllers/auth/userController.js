@@ -17,7 +17,7 @@ import {
 import jwt  from "jsonwebtoken"
 import User from '../../models/user/userSchema.js';
 import { validatePassword } from '../../resources/functions.js';
-
+import { sendEmailVerification } from '../../resources/functions.js';
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
 
 
@@ -214,6 +214,90 @@ export const dashboard = async (req, res) => {
         return res.status(500).json({ error: `Server error: ${error.message}` });
     }
 };
+
+
+
+
+export const editProfile = [
+    authenticateToken,
+    async (req, res) => {
+        try {
+            const updates = req.body;
+
+            
+            if (updates.email) {
+                const { email: emailResult } = validateUserInput(updates.email, "dummyPassword");
+                if (!emailResult.isValid) {
+                    return res.status(400).json({ error: emailResult.message });
+                }
+            }
+            if (updates.name && (typeof updates.name !== 'string' || updates.name.trim().length < 2 || updates.name.trim().length > 50)) {
+                return res.status(400).json({ error: "Name must be a string between 2 and 50 characters" });
+            }
+
+            // Find user
+            const user = await User.findById(req.user.id);
+            if (!user) {
+                return res.status(404).json({ error: "User not found" });
+            }
+
+            // Check if email is already in use
+            if (updates.email && updates.email !== user.email) {
+                const existingUser = await User.findOne({ email: updates.email });
+                if (existingUser && existingUser._id.toString() !== req.user.id) {
+                    return res.status(400).json({ error: "Email is already in use" });
+                }
+                updates.isVerified = false;
+                updates.verificationToken = crypto.randomBytes(32).toString('hex');
+            }
+
+            // Remove sensitive fields from updates
+            delete updates.password;
+            delete updates.user_type;
+            delete updates.reviews;
+            delete updates.resetPasswordToken;
+            delete updates.resetPasswordExpires;
+            delete updates.passwordChangedAt;
+
+            // Apply updates using $set
+            const updatedUser = await User.findByIdAndUpdate(
+                req.user.id,
+                { $set: updates },
+                { new: true, runValidators: true }
+            ).select('-password -resetPasswordToken -resetPasswordExpires -verificationToken -__v');
+
+            // Send verification email if email changed
+            if (updates.email && updates.email !== req.user.email) {
+                const verificationResult = await sendEmailVerification(updates.email, req.user.id);
+                if (!verificationResult.success) {
+                    return res.status(500).json({ error: `Failed to send verification email: ${verificationResult.message}` });
+                }
+            }
+
+            // Emit real-time event
+            req.io.to(req.user.id).emit('profileUpdated', {
+                name: updatedUser.name,
+                email: updatedUser.email,
+                isVerified: updatedUser.isVerified
+            });
+
+            res.status(200).json({
+                message: "Profile updated successfully",
+                user: updatedUser
+            });
+        } catch (error) {
+            console.error("Edit profile error:", error.message);
+            res.status(500).json({ error: `Server error: ${error.message}` });
+        }
+    }
+];
+
+
+
+
+
+
+
 
 export const refresh = async (req, res) => {
     try {
@@ -429,9 +513,7 @@ export const changePassword = [
 
 
 
- export const changeMyPassword = async(req, res) => {
-
- }
+ 
 
 
 
