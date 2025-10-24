@@ -356,23 +356,6 @@ export async function sendPasswordResetEmail(email, token) {
 
 
 
-// export async function uploadToCloudinary(images) {
-//     try {
-//         const uploadPromises = images.map(async (image) => {
-//             const result = await cloudinary.v2.uploader.upload(image, {
-//                 upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET,
-//                 folder: "jobs"
-//             });
-//             return result.secure_url;
-//         });
-//         const urls = await Promise.all(uploadPromises);
-//         return { success: true, urls };
-//     } catch (error) {
-//         console.error("Cloudinary upload failed:", error);
-//         return { success: false, message: `Cloudinary upload failed: ${error.message}` };
-//     }
-// }
-
 export function generateUniqueNumber() {
     try {
         const timestamp = Date.now().toString(36);
@@ -440,7 +423,56 @@ export async function sendReportNotification(email, reportId, reportTitle) {
     }
 }
 
-export async function sendQuotationNotification(email, reportId, reportTitle, specialistName) {
+
+
+
+
+
+
+
+
+
+
+
+export async function sendQuotationNotification(email, reportId, reportTitle, specialistName, specialistEmail, amount, duration, reasonForFault) {
+    try {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: EMAIL_USER,
+                pass: EMAIL_PASS,
+            },
+        });
+
+        const acceptUrl = `https://wheelitin.taskflow.com.ng/reports/${reportId}/accept?specialistId=${encodeURIComponent(specialistEmail)}`;
+        const declineUrl = `https://wheelitin.taskflow.com.ng/reports/${reportId}/decline?specialistId=${encodeURIComponent(specialistEmail)}`;
+        await transporter.sendMail({
+            from: `"WheelItIn" <${EMAIL_USER}>`,
+            to: email,
+            subject: `New Quotation for Your Report: ${reportTitle}`,
+            text: `${specialistName} (${specialistEmail}) has submitted a quotation for your report: ${reportTitle}.\nAmount: $${amount}\nDuration: ${duration}\nReason for Fault: ${reasonForFault}\nAccept: ${acceptUrl}\nDecline: ${declineUrl}`,
+            html: `
+                <p><strong>${specialistName}</strong> (${specialistEmail}) has submitted a quotation for your report: <strong>${reportTitle}</strong>.</p>
+                <ul>
+                    <li><strong>Amount:</strong> $${amount}</li>
+                    <li><strong>Duration:</strong> ${duration}</li>
+                    <li><strong>Reason for Fault:</strong> ${reasonForFault}</li>
+                </ul>
+                <p>
+                    <a href="${acceptUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Accept Quotation</a>
+                    <a href="${declineUrl}" style="background-color: #f44336; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-left: 10px;">Decline Quotation</a>
+                </p>
+                <p><a href="https://wheelitin.taskflow.com.ng/reports/${reportId}">View Report Details</a></p>
+            `
+        });
+        return { success: true, message: "Quotation notification email sent successfully" };
+    } catch (error) {
+        console.error("Failed to send quotation notification email:", error.message);
+        return { success: false, message: `Failed to send quotation notification email: ${error.message}` };
+    }
+}
+
+export async function sendQuotationAcceptedNotification(specialistEmail, reportId, reportTitle, userName, userEmail, amount, duration, reasonForFault, appointmentDate, appointmentTime) {
     try {
         const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -452,18 +484,71 @@ export async function sendQuotationNotification(email, reportId, reportTitle, sp
 
         const reportUrl = `https://wheelitin.taskflow.com.ng/reports/${reportId}`;
         await transporter.sendMail({
-            from: `"wheelitin" <${EMAIL_USER}>`,
-            to: email,
-            subject: `New Quotation for Report: ${reportTitle}`,
-            text: `${specialistName} has submitted a quotation for your report: ${reportTitle}. View details: ${reportUrl}`,
-            html: `<p>${specialistName} has submitted a quotation for your report: <strong>${reportTitle}</strong>. <a href="${reportUrl}">View Details</a></p>`
+            from: `"WheelItIn" <${EMAIL_USER}>`,
+            to: specialistEmail,
+            subject: `Your Quotation for ${reportTitle} Has Been Accepted`,
+            text: `${userName} (${userEmail}) has accepted your quotation for the report: ${reportTitle}.\nAmount: $${amount}\nDuration: ${duration}\nReason for Fault: ${reasonForFault}\nAppointment: ${appointmentDate} at ${appointmentTime}\nView details: ${reportUrl}`,
+            html: `
+                <p><strong>${userName}</strong> (${userEmail}) has accepted your quotation for the report: <strong>${reportTitle}</strong>.</p>
+                <ul>
+                    <li><strong>Amount:</strong> $${amount}</li>
+                    <li><strong>Duration:</strong> ${duration}</li>
+                    <li><strong>Reason for Fault:</strong> ${reasonForFault}</li>
+                    <li><strong>Appointment:</strong> ${appointmentDate} at ${appointmentTime}</li>
+                </ul>
+                <p><a href="${reportUrl}">View Report Details</a></p>
+            `
         });
-        return { success: true, message: "Quotation notification email sent successfully" };
+        return { success: true, message: "Quotation accepted notification email sent successfully" };
     } catch (error) {
-        console.error("Failed to send quotation notification email:", error);
-        return { success: false, message: `Failed to send quotation notification email: ${error.message}` };
+        console.error("Failed to send quotation accepted notification email:", error.message);
+        return { success: false, message: `Failed to send quotation accepted notification email: ${error.message}` };
     }
 }
+
+
+
+
+
+
+
+export async function sendQuotationDeclinedNotification(specialistEmail, reportId, reportTitle, userName) {
+    try {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: EMAIL_USER,
+                pass: EMAIL_PASS,
+            },
+        });
+
+        const reportUrl = `https://wheelitin.taskflow.com.ng/reports/${reportId}`;
+        await transporter.sendMail({
+            from: `"WheelItIn" <${EMAIL_USER}>`,
+            to: specialistEmail,
+            subject: `Your Quotation for ${reportTitle} Has Been Declined`,
+            text: `${userName} has declined your quotation for the report: ${reportTitle}.\nView details: ${reportUrl}`,
+            html: `
+                <p><strong>${userName}</strong> has declined your quotation for the report: <strong>${reportTitle}</strong>.</p>
+                <p><a href="${reportUrl}">View Report Details</a></p>
+            `
+        });
+        return { success: true, message: "Quotation declined notification email sent successfully" };
+    } catch (error) {
+        console.error("Failed to send quotation declined notification email:", error.message);
+        return { success: false, message: `Failed to send quotation declined notification email: ${error.message}` };
+    }
+}
+
+
+
+
+
+
+
+
+
+
 
 export async function uploadToCloudinary(media, type = 'image') {
     try {

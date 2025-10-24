@@ -1,7 +1,8 @@
 import { authenticateToken, uploadToCloudinary, sendEmailVerification, sendReportNotification, sendQuotationNotification, getCoordinates } from '../../resources/functions.js';
 import Report from '../../models/job/reportSchema.js';
 import User from '../../models/user/userSchema.js';
-
+import { sendQuotationAcceptedNotification } from '../../resources/functions.js';
+import { sendQuotationDeclinedNotification } from '../../resources/functions.js';
 export const createReport = [
     authenticateToken,
     async (req, res) => {
@@ -144,6 +145,10 @@ export const createReport = [
 
 
 
+
+
+
+
 export const submitQuotation = [
     authenticateToken,
     async (req, res) => {
@@ -180,7 +185,16 @@ export const submitQuotation = [
 
             // Notify user
             const reportUser = await User.findById(report.userId);
-            await sendQuotationNotification(reportUser.email, reportId, report.carMaker + " " + report.carModel, user.name);
+            await sendQuotationNotification(
+                reportUser.email,
+                reportId,
+                report.carMaker + " " + report.carModel,
+                user.first_name,
+                user.email,
+                amount,
+                duration,
+                reasonForFault
+            );
 
             // Emit real-time event
             req.io.to(report.userId.toString()).emit('newQuotation', {
@@ -193,13 +207,11 @@ export const submitQuotation = [
 
             res.status(200).json({ message: "Quotation submitted successfully" });
         } catch (error) {
-            console.error("Submit quotation error:", error);
+            console.error("Submit quotation error:", error.message);
             res.status(500).json({ error: "Server error: " + error.message });
         }
     }
 ];
-
-
 
 export const acceptQuotation = [
     authenticateToken,
@@ -242,7 +254,19 @@ export const acceptQuotation = [
 
             // Notify specialist
             const specialist = await User.findById(specialistId);
-            await sendQuotationNotification(specialist.email, reportId, report.carMaker + " " + report.carModel, "User");
+            const reportUser = await User.findById(req.user.id);
+            await sendQuotationAcceptedNotification(
+                specialist.email,
+                reportId,
+                report.carMaker + " " + report.carModel,
+                reportUser.first_name,
+                reportUser.email,
+                quotation.amount,
+                quotation.duration,
+                quotation.reasonForFault,
+                date,
+                time
+            );
 
             // Emit real-time event
             req.io.to(specialistId).emit('quotationAccepted', {
@@ -264,11 +288,65 @@ export const acceptQuotation = [
 
             res.status(200).json({ message: "Quotation accepted and appointment scheduled" });
         } catch (error) {
-            console.error("Accept quotation error:", error);
+            console.error("Accept quotation error:", error.message);
             res.status(500).json({ error: "Server error: " + error.message });
         }
     }
 ];
+
+export const declineQuotation = [
+    authenticateToken,
+    async (req, res) => {
+        try {
+            const { reportId, specialistId } = req.params;
+
+            const report = await Report.findById(reportId);
+            if (!report) {
+                return res.status(404).json({ error: "Report not found" });
+            }
+
+            if (report.userId.toString() !== req.user.id) {
+                return res.status(403).json({ error: "Unauthorized to decline quotations for this report" });
+            }
+
+            if (report.status !== "pending") {
+                return res.status(400).json({ error: "Report is not in pending status" });
+            }
+
+            const quotationIndex = report.quotations.findIndex(q => q.specialistId.toString() === specialistId);
+            if (quotationIndex === -1) {
+                return res.status(404).json({ error: "Quotation not found" });
+            }
+
+            // Remove the quotation
+            report.quotations.splice(quotationIndex, 1);
+            await report.save();
+
+            // Notify specialist
+            const specialist = await User.findById(specialistId);
+            const reportUser = await User.findById(req.user.id);
+            await sendQuotationDeclinedNotification(
+                specialist.email,
+                reportId,
+                report.carMaker + " " + report.carModel,
+                reportUser.name
+            );
+
+            // Emit real-time event
+            req.io.to(specialistId).emit('quotationDeclined', {
+                reportId,
+                userId: req.user.id
+            });
+
+            res.status(200).json({ message: "Quotation declined successfully" });
+        } catch (error) {
+            console.error("Decline quotation error:", error.message);
+            res.status(500).json({ error: "Server error: " + error.message });
+        }
+    }
+];
+
+
 
 export const completeReport = [
     authenticateToken,
