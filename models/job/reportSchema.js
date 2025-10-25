@@ -50,7 +50,7 @@ const reportSchema = new mongoose.Schema({
     locationOther: { type: String, trim: true, required: false },
     urgency: {
         type: String,
-        enum: ["urgent", "normal", "flexible"],
+        enum: ["urgent", "very urgent", "not really urgent"],
         required: [true, "Urgency is required"]
     },
     location: { type: String, required: [true, "Location is required"], trim: true },

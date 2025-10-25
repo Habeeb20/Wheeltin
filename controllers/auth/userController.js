@@ -274,6 +274,8 @@ export const editProfile = [
                 }
             }
 
+            await updatedUser.save()
+
             // Emit real-time event
             req.io.to(req.user.id).emit('profileUpdated', {
                 name: updatedUser.name,
